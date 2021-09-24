@@ -7,7 +7,7 @@ namespace MakeReport
         static void Main(string[] args)
         {
             Report.BasicReport();
-            Report.IntermediateReport();
+            //Report.IntermediateReport();
         }
     }
 }

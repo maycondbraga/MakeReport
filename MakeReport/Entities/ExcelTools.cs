@@ -23,10 +23,12 @@ namespace MakeReport.Entities
                 Application excelApp = new Application();
 
                 // Open and create a workbook
-                excelApp.Workbooks.Add();
+                Workbooks workbooks = excelApp.Workbooks;
+                
+                _Workbook _workbook = workbooks.Add();
 
                 // Open a worksheet
-                _Worksheet workSheet = excelApp.ActiveSheet;
+                _Worksheet workSheet = _workbook.ActiveSheet;
 
                 // Captures the DataTable columns
                 for (var i = 0; i < dataTable.Columns.Count; i++)
@@ -56,6 +58,9 @@ namespace MakeReport.Entities
                     {
                         workSheet.SaveAs(excelPath);
                         excelApp.Quit();
+
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
                     }
                     catch (Exception ex)
                     {
@@ -65,6 +70,8 @@ namespace MakeReport.Entities
                 else
                 { // If no path is specified, open the current file in Excel
                     excelApp.Visible = true;
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
                 }
             }
             catch (Exception ex)
@@ -76,15 +83,23 @@ namespace MakeReport.Entities
         /// <summary>
         /// Return a list with values found in the file passed
         /// </summary>
-        public static List<string> ExcelColumnToList(Workbook workbook, ExcelColumn excelColumn)
+        public static List<string> ExcelColumnToList(string path, ExcelColumn excelColumn, bool header)
         {
+            // Create list that will store values
+            List<string> listValues = new List<string>();
+
             try
             {
-                // Create list that will store values
-                List<string> listValues = new List<string>();
+                // Create the excel application
+                Application app = new Application();
+
+                // Open a workbook
+                Workbook workbook = app.Workbooks.Open(path);
 
                 // Open a worksheet
-                Worksheet worksheet = workbook.Sheets[1];
+                Sheets worksheets = workbook.Sheets;
+
+                var worksheet = worksheets[1];
 
                 // Instantiates the specified column
                 Range column = worksheet.Columns[(int)excelColumn];
@@ -93,17 +108,26 @@ namespace MakeReport.Entities
                 int totalLine = worksheet.UsedRange.Rows.Count;
 
                 // Loop that captures all rows in the column and stores it in the list
-                for (int i = 2; i <= totalLine; i++)
+                for (int i = header ? 2 : 1; i <= totalLine; i++)
                 {
                     listValues.Add(column.Cells[i].Value2.ToString());
                 }
 
-                return listValues;
+                // Close the workbook
+                workbook.Close(false);
+
+                // Close the excel application
+                app.Quit();
             }
             catch (Exception ex)
             {
                 throw new Exception("Error capturing values ​​in Excel file \nError: " + ex.Message);
             }
-        } 
+
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            return listValues;
+        }
     }
 }

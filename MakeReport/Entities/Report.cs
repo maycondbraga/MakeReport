@@ -5,7 +5,7 @@ using System.Linq;
 using System.Data.SqlClient;
 using MakeReport.Entities.Enums;
 using System.Collections.Generic;
-using Microsoft.Office.Interop.Excel;
+using System.Configuration;
 
 namespace MakeReport.Entities
 {
@@ -15,42 +15,36 @@ namespace MakeReport.Entities
         private static string FilePath = @"C:\Users\Public\Downloads";
 
         // Query you want to do
-        private static string basicQuery = "SELECT [COLUMNS NAMES] " +
+        private static string BasicQuery = "SELECT [COLUMNS NAMES] " +
                                            "FROM [TABLE NAME] " +
                                            "WHERE [CONDITIONS]";
 
-        // Query you want to do (Parameters are being entered into the method through Excel)
-        private static string intermediateQuery = "SELECT [COLUMNS NAMES] " +
-                                                  "FROM [TABLE NAME] " +
-                                                  "WHERE [CONDITIONS] AND [COLUMN_NAME] IN ({0})";
+        public static string IntermediateQuery = "SELECT [COLUMNS NAMES] " +
+                                                 "FROM [TABLE NAME] " +
+                                                 "WHERE [CONDITIONS] AND [COLUMN_NAME] IN ({0})";
 
         /// <summary>
         /// Create simple report based on a query without parameters
         /// </summary>
         public static void BasicReport()
         {
-
-
             // Excel file name with current date formated as DayMonthYear
             string filename = @"REPORT_NAME_" + DateTime.Now.ToString("ddMMyyyy") + ".xlsx";
 
-            string[] path = new string[] { FilePath, filename };
-
             // Path to save the Excel file
-            string fullPath = Path.Combine(path);
+            string fullPath = Path.Combine(FilePath, filename);
 
             // DataTable that stores the SQL query
             System.Data.DataTable dataTable = new System.Data.DataTable();
 
             // SQL Server Connection String
-            // string connectionString = @"Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
-            string connectionString = @"Server=myServerAddress;Database=myDataBase;Integrated Security=True;";
+            string connectionString = ConfigurationManager.ConnectionStrings["NameDatabase"].ConnectionString;
 
             // SQL Server Connection
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 // SQL Query Command
-                SqlCommand cmd = new SqlCommand(basicQuery, conn);
+                SqlCommand cmd = new SqlCommand(BasicQuery, conn);
 
                 // Open connection with SQL
                 conn.Open();
@@ -68,6 +62,8 @@ namespace MakeReport.Entities
 
             // Method that exports the DataTable as Excel at the specified path
             ExcelTools.DataTableToExcel(dataTable, fullPath);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
 
             Console.WriteLine("\nReport Finished with Success");
         }
@@ -97,20 +93,10 @@ namespace MakeReport.Entities
 
                 try
                 {
-                    // Create the excel application
-                    Application app = new Application();
-
-                    // Open a workbook
-                    Workbook workbook = app.Workbooks.Open(path[0]);
-
                     // Return a list with values found in the file passed
-                    listValues = ExcelTools.ExcelColumnToList(workbook, ExcelColumn.B);
-
-                    // Close the workbook
-                    workbook.Close(false);
-
-                    // Close the excel application
-                    app.Quit();
+                    listValues = ExcelTools.ExcelColumnToList(path[0], ExcelColumn.B, true);
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
                 }
                 catch (Exception ex)
                 {
@@ -121,8 +107,7 @@ namespace MakeReport.Entities
                 {
 
                     // SQL Server Connection String
-                    // string connectionString = @"Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;";
-                    string connectionString = @"Server=myServerAddress;Database=myDataBase;Integrated Security=True;";
+                    string connectionString = ConfigurationManager.ConnectionStrings["NameDatabase"].ConnectionString;
 
                     // SQL Server Connection
                     using (SqlConnection conn = new SqlConnection(connectionString))
@@ -135,7 +120,7 @@ namespace MakeReport.Entities
                         string inClause = string.Join(", ", paramNames);
 
                         // SQL Query Command
-                        SqlCommand cmd = new SqlCommand(string.Format(intermediateQuery, inClause), conn);
+                        SqlCommand cmd = new SqlCommand(string.Format(IntermediateQuery, inClause), conn);
 
                         // For each parameter in paramNames, a value is given in the query
                         for (int i = 0; i < paramNames.Length; i++)
@@ -176,6 +161,8 @@ namespace MakeReport.Entities
 
                         // Method that exports the DataTable as Excel at the specified path
                         ExcelTools.DataTableToExcel(dataTable, fullPath);
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
 
                         Console.WriteLine("\nCopy with folders and id created");
                     }
